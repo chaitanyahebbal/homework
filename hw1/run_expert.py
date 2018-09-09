@@ -15,7 +15,8 @@ import tensorflow as tf
 import numpy as np
 import tf_util
 import gym
-import load_policy
+#import load_policy
+import importlib
 
 def main():
     import argparse
@@ -28,16 +29,26 @@ def main():
                         help='Number of expert roll outs')
     args = parser.parse_args()
 
-    print('loading and building expert policy')
-    policy_fn = load_policy.load_policy(args.expert_policy_file)
-    print('loaded and built')
+    print('loading expert policy')
+    module_name = args.expert_policy_file.replace('/', '.')
+    if module_name.endswith('.py'):
+        module_name = module_name[:-3]
+    policy_module = importlib.import_module(module_name)
+    print('loaded')
+
+    env, policy = policy_module.get_env_and_policy()
+    max_steps = args.max_timesteps or env.spec.timestep_limit
+    
+#    print('loading and building expert policy')
+#    policy_fn = load_policy.load_policy(args.expert_policy_file)
+#    print('loaded and built')
 
     with tf.Session():
         tf_util.initialize()
 
-        import gym
-        env = gym.make(args.envname)
-        max_steps = args.max_timesteps or env.spec.timestep_limit
+#        import gym
+#        env = gym.make(args.envname)
+#        max_steps = args.max_timesteps or env.spec.timestep_limit
 
         returns = []
         observations = []
@@ -49,7 +60,7 @@ def main():
             totalr = 0.
             steps = 0
             while not done:
-                action = policy_fn(obs[None,:])
+                action = policy.act(obs)
                 observations.append(obs)
                 actions.append(action)
                 obs, r, done, _ = env.step(action)
